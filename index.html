@@ -820,13 +820,14 @@ footer .r{text-align:right;font-family:var(--f-mono);font-size:11px;letter-spaci
         </div>
         <label class="agree" for="f-ok"><input type="checkbox" id="f-ok"> 상담 목적의 개인정보 수집·이용에 동의합니다. 수집 항목은 상담 종료 후 지체 없이 파기합니다.</label>
         <div class="err" id="err" hidden></div>
-        <div class="row"><small>* 필수 항목 4개</small><button class="btn" type="submit">문의 내용 정리 <span class="arr">&rarr;</span></button></div>
+        <input type="text" id="f-hp" name="_honey" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" aria-hidden="true">
+        <div class="row"><small>* 필수 항목 4개</small><button class="btn" type="submit" id="sendBtn">문의 보내기 <span class="arr">&rarr;</span></button></div>
       </form>
       <div class="done" id="done" hidden>
-        <h4>문의 내용이 정리되었습니다</h4>
-        <p>아래 내용을 복사해 pinetreekorea1@naver.com 으로 보내주시거나, 070-8844-1279 로 연락 주시면 바로 확인하겠습니다.</p>
-        <pre id="sum"></pre>
-        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" type="button" id="cpSum">내용 복사</button><button class="btn ghost" type="button" id="back">다시 작성</button></div>
+        <h4 id="doneTitle">문의가 접수되었습니다</h4>
+        <p id="doneMsg">보내주신 내용은 대표이사가 직접 확인한 뒤, 남겨주신 연락처로 영업일 기준 1일 이내에 연락드리겠습니다.</p>
+        <pre id="sum" hidden></pre>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" type="button" id="cpSum" hidden>내용 복사</button><button class="btn ghost" type="button" id="back">새 문의 작성</button></div>
       </div>
     </div>
   </div>
@@ -986,8 +987,23 @@ form.addEventListener("submit",e=>{e.preventDefault();
   if(miss.length){err.textContent=miss.join(", ")+" 항목을 입력해 주세요.";err.hidden=false;return}
   if(!document.getElementById("f-ok").checked){err.textContent="개인정보 수집·이용 동의에 체크해 주세요.";err.hidden=false;return}
   err.hidden=true;
-  document.getElementById("sum").textContent=`[${mode==="conf"?"비밀보장 문의":"일반 문의"}] 파인트리코리아 상담 요청\n회사명: ${v("f-co")}\n담당자: ${v("f-nm")}\n연락처: ${v("f-ph")}\n문의 분야: ${v("f-tp")}\n내용: ${v("f-msg")||"-"}`;
-  form.hidden=true;done.hidden=false});
+  if(v("f-hp"))return;
+  const kind=mode==="conf"?"비밀보장 문의":"일반 문의";
+  const sumTxt=`[${kind}] 파인트리코리아 상담 요청\n회사명: ${v("f-co")}\n담당자: ${v("f-nm")}\n연락처: ${v("f-ph")}\n문의 분야: ${v("f-tp")}\n내용: ${v("f-msg")||"-"}`;
+  const btn=document.getElementById("sendBtn"),btnHtml=btn.innerHTML;
+  btn.disabled=true;btn.textContent="보내는 중...";
+  const show=ok=>{
+    document.getElementById("doneTitle").textContent=ok?"문의가 접수되었습니다":"전송에 실패했습니다";
+    document.getElementById("doneMsg").textContent=ok
+      ?"보내주신 내용은 대표이사가 직접 확인한 뒤, 남겨주신 연락처로 영업일 기준 1일 이내에 연락드리겠습니다."
+      :"일시적인 오류로 접수되지 않았습니다. 아래 내용을 복사해 pinetreekorea1@naver.com 으로 보내주시거나 070-8844-1279 로 연락 주십시오.";
+    const s=document.getElementById("sum");s.textContent=sumTxt;s.hidden=ok;document.getElementById("cpSum").hidden=ok;
+    btn.disabled=false;btn.innerHTML=btnHtml;form.hidden=true;done.hidden=false;
+    if(ok){form.reset();setMode("conf")}};
+  fetch("https://formsubmit.co/ajax/pinetreekorea1@naver.com",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},
+    body:JSON.stringify({"_subject":`[홈페이지 ${kind}] ${v("f-co")} / ${v("f-tp")}`,"_template":"table","_captcha":"false",
+      "문의 구분":kind,"회사명":v("f-co"),"담당자":v("f-nm"),"연락처":v("f-ph"),"문의 분야":v("f-tp"),"문의 내용":v("f-msg")||"-"})})
+   .then(r=>r.json()).then(d=>show(d&&(d.success===true||d.success==="true"))).catch(()=>show(false))});
 document.getElementById("back").onclick=()=>{form.hidden=false;done.hidden=true};
 document.getElementById("cpSum").addEventListener("click",function(){copy(document.getElementById("sum").textContent,this)});
 
